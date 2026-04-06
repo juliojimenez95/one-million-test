@@ -155,4 +155,29 @@ export class LeadsService {
       leadsUltimos7Dias: leadsRecientes,
     };
   }
+
+  async getLeadsForSummary(filters: any) {
+    const { fuente, fechaInicio, fechaFin } = filters;
+    const where: any = { deletedAt: null };
+
+    if (fuente) {
+      where.fuente = fuente;
+    }
+
+    if (fechaInicio || fechaFin) {
+      where.createdAt = {};
+      if (fechaInicio) where.createdAt.gte = new Date(fechaInicio);
+      if (fechaFin) {
+        const end = new Date(fechaFin);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
+
+    return this.prisma.lead.findMany({
+      where,
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

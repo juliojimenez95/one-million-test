@@ -1,72 +1,96 @@
-# One Million Test API
+# One Million Test API 🚀
 
 ![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white) 
 ![Prisma](https://img.shields.io/badge/Prisma-3982CE?style=for-the-badge&logo=Prisma&logoColor=white) 
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
 
-Proyecto base de prueba técnica para gestión de leads e IA, construido con arquitectura modular bajo los estándares de _Clean Architecture_ y _Secure by Default_.
+API robusta para la gestión inteligente de leads con integración de IA, diseñada bajo principios de **Clean Architecture**, **SOLID** y **Secure by Default**.
 
-## Características Implementadas (Fase 1)
+---
 
-* **Arquitectura:** Modular orientada a dominios (`LeadsModule`, `AuthModule`, `AiModule`, `PrismaModule`).
-* **Base de Datos:** PostgreSQL 15 integrado vía Prisma ORM con modelo `Lead` incluyendo borrado lógico (`deletedAt`).
-* **Seguridad (Secure By Default):** 
-  * Autenticación con JWT (Passport) global a nivel de aplicación mediante `JwtAuthGuard`. Endpoints expuestos a través de `@Public()`.
-  * Rate-Limiting estricto (10 peticiones por 60 segundos) usando `@nestjs/throttler`.
-  * Validación general de DTOs con `ValidationPipe`.
-* **Pruebas Integradas:** Seed de Prisma con 1 usuario admin y 10 leads generados automáticamente en el aprovisionamiento.
-* **Documentación:** OpenAPI (Swagger) montada con soporte para JWT Bearer Auth.
+## 📑 Tabla de Contenidos
+* [🚀 Despliegue Rápido (Docker)](#-despliegue-rápido-docker)
+* [🏗️ Arquitectura y Stack](#️-arquitectura-y-stack)
+* [🤖 Motor de IA (Requerimiento Punto 3)](#-motor-de-ia-requerimiento-punto-3)
+* [🔒 Seguridad y Manejo de Errores](#-seguridad-y-manejo-de-errores)
+* [📚 Documentación de Endpoints](#-documentación-de-endpoints)
+* [✍️ Ensayo Teórico (Punto 4)](#️-ensayo-teórico-punto-4)
 
-## Despliegue con Docker
+---
 
-Tanto la API como la Base de Datos están completamente dockerizadas y orquestadas vía Docker Compose, listas para entorno de desarrollo/producción gracias a un Dockerfile multi-stage con optimización de dependencias (`alpine` + `openssl`).
+## 🚀 Despliegue Rápido (Docker)
 
-### Levantar el ecosistema
+El ecosistema está totalmente automatizado. Al levantar los contenedores, se ejecuta automáticamente el aprovisionamiento de la base de datos, migraciones de Prisma y el **Seeding** de datos iniciales.
 
-1. Clona este proyecto y entra en el directorio raíz.
-2. Ejecuta el comando mágico:
-   ```bash
-   docker-compose up --build -d
-   ```
-   *Esto descargará, construirá y levantará la BD y la API en puertos estándar.*
-
-3. Verifica el estado en Docker Desktop. El contenedor `one-million-api` estará exponiendo los servicios.
-
-### Documentación API (Swagger)
-
-Una vez que los contenedores estén corriendo exitosamente, la documentación interactiva de toda la aplicación será visible aquí:
-**[http://localhost:3000/docs](http://localhost:3000/docs)**
-
-Podrás interactuar con todos los endpoints. Para probar rutas protegidas, primero usa el endpoint `POST /api/auth/login` introduciendo las credenciales por defecto insertadas por nuestro _seeder_:
-
-```json
-{
-  "email": "admin@one-million.com",
-  "password": "hashed_password_placeholder"
-}
-```
-
-Al obtener tu Token JWT, añádelo haciendo clic en el candado **"Authorize"** en la parte superior derecha de Swagger. Teniendo la sesión iniciada podrás:
-* `GET /api/leads`: Obtener Leads generados (con borrado lógico manejado).
-* `PATCH /api/leads/:id`: Modificar propiedades de un Lead.
-* `POST /api/leads/webhook`: Endpoint simulador de Typeform, público (`@Public()`) que no requiere token.
-
-## Scripts Locales
-
-Si deseas probar localmente sin el contenedor de la API (solo usando docker para Postgres):
+### 1. Levantar el proyecto:
 ```bash
-# Instalar dependencias puras (Asegúrate de tener Node 20+)
-npm install
-
-# Levantar DB local
-docker-compose up -d postgres
-
-# Sincronizar Prisma y poblar
-npx prisma generate
-npx prisma db push
-npm run prisma:seed
-
-# Modo desarrollo
-npm run start:dev
+docker-compose up --build -d
 ```
+
+### 2. Acceso a servicios:
+- **Base URL:** `http://localhost:3000/api`
+- **Swagger Documentation:** `http://localhost:3000/api/docs`
+
+### 3. Credenciales de Prueba (Admin):
+- **Email:** `admin@one-million.com`
+- **Password:** `admin123`
+
+> Usa estas credenciales en el endpoint `POST /auth/login` para obtener tu Token JWT.
+
+---
+
+## 🏗️ Arquitectura y Stack
+
+La aplicación sigue una estructura modular para facilitar el mantenimiento y escalabilidad:
+
+- **Framework:** NestJS con TypeScript.
+- **ORM:** Prisma con PostgreSQL 15.
+- **Validación:** `class-validator` para asegurar la integridad de los DTOs.
+- **Contenedores:** Docker & Docker Compose para un entorno reproducible.
+
+---
+
+## 🤖 Motor de IA (Requerimiento Punto 3)
+
+Se implementó un servicio de IA resiliente que procesa datos de leads en tiempo real:
+
+- **Análisis Individual:** `GET /leads/:id/ai-summary` — Evalúa el potencial de un lead y asigna prioridad.
+- **Análisis Grupal:** `POST /leads/ai/summary` — Recibe filtros dinámicos (fuente, rango de fechas) y genera un reporte ejecutivo de métricas.
+
+> [!IMPORTANT]
+> **Estrategia de Resiliencia (Mocking):** El sistema detecta automáticamente la presencia de la `OPENAI_API_KEY` en el `.env`. En su ausencia, el `AiService` conmuta a un **Mock Dinámico** que analiza los datos reales de la DB para generar el reporte, garantizando que la funcionalidad siempre esté disponible.
+
+---
+
+## 🔒 Seguridad y Manejo de Errores
+
+- **Auth:** JWT Strategy con protección global mediante `JwtAuthGuard`.
+- **Validación de Negocio:** Manejo de conflictos de duplicidad (Email) devolviendo `409 Conflict`.
+- **Persistencia:** Implementación de Borrado Lógico (`deletedAt`) para cumplimiento de integridad de datos.
+- **Estandarización:** Respuestas de error consistentes y documentadas en Swagger.
+
+---
+
+## 📚 Documentación de Endpoints
+
+| Módulo | Endpoint | Acceso | Descripción |
+|--------|----------|--------|-------------|
+| Auth | `POST /auth/login` | Público | Generación de Bearer Token. |
+| Leads | `GET /leads` | Protegido | Listado con filtros y paginación. |
+| IA | `POST /leads/ai/summary` | Protegido | Generación de resumen ejecutivo grupal. |
+
+---
+
+## ✍️ Ensayo Teórico (Punto 4)
+
+El análisis sobre la transformación de la creación de contenido mediante IA y su impacto en la viralidad se encuentra documentado en el siguiente archivo:
+
+👉 [Consultar ENSAYO.md](./ENSAYO.md)
+
+---
+
+> 💡 **Nota del Desarrollador**
+>
+> Este proyecto demuestra habilidades en arquitectura de microservicios, integración de servicios de terceros (LLMs) y despliegue automatizado. La lógica está desacoplada para permitir el cambio de modelos de IA sin afectar el core del negocio.

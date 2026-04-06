@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { LeadsService } from './leads.service';
+import { AiService } from './ai.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { GetLeadsFilterDto } from './dto/get-leads-filter.dto';
+import { GroupSummaryFilterDto } from './dto/group-summary-filter.dto'; // Added
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 
@@ -11,13 +13,37 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagg
 @UseGuards(JwtAuthGuard)
 @Controller('leads')
 export class LeadsController {
-  constructor(private readonly leadsService: LeadsService) {}
+  constructor(
+    private readonly leadsService: LeadsService,
+    private readonly aiService: AiService,
+  ) {}
 
   @Get('stats')
   @ApiOperation({ summary: 'Obtener estadísticas de leads' })
   @ApiResponse({ status: 200, description: 'Estadísticas obtenidas correctamente.' })
   getStats() {
     return this.leadsService.getStats();
+  }
+
+  @Post('ai/summary') // Nuevo endpoint de Resumen Grupal
+  @ApiOperation({ summary: 'Generar un resumen ejecutivo grupal filtrado por IA' })
+  @ApiResponse({ status: 200, description: 'Resumen grupal generado.' })
+  async getGroupAiSummary(@Body() filterDto: GroupSummaryFilterDto) {
+    const leads = await this.leadsService.getLeadsForSummary(filterDto);
+    return {
+      summary: await this.aiService.generateGroupSummary(leads),
+    };
+  }
+
+  @Get(':id/ai-summary')
+  @ApiOperation({ summary: 'Generar un resumen ejecutivo del lead usando IA' })
+  @ApiResponse({ status: 200, description: 'Resumen generado exitosamente.' })
+  @ApiResponse({ status: 404, description: 'Lead no encontrado.' })
+  async getAiSummary(@Param('id') id: string) {
+    const lead = await this.leadsService.findOne(id);
+    return {
+      summary: await this.aiService.generateSummary(lead),
+    };
   }
 
   @Post()
