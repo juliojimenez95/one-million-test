@@ -1,30 +1,62 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
-import { PaginationDto } from './dto/pagination.dto';
+import { GetLeadsFilterDto } from './dto/get-leads-filter.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createLeadDto: CreateLeadDto) {
-    return this.prisma.lead.create({
-      data: createLeadDto,
-    });
+    try {
+      return await this.prisma.lead.create({
+        data: createLeadDto,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException('El correo electrónico ya se encuentra registrado');
+        }
+      }
+      throw new InternalServerErrorException('Error inesperado al crear el lead');
+    }
   }
 
-  async findAll(paginationDto: PaginationDto) {
-    const { skip, take } = paginationDto;
+  async findAll(filterDto: GetLeadsFilterDto) {
+    const { page = 1, limit = 10, fuente, startDate, endDate } = filterDto;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (fuente) {
+      where.fuente = fuente;
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.lead.findMany({
-        where: { deletedAt: null }, // Automatically filter out soft-deleted records
+        where,
         skip,
-        take,
+        take: limit,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.lead.count({
-        where: { deletedAt: null },
+        where,
       }),
     ]);
 
@@ -32,8 +64,9 @@ export class LeadsService {
       data,
       meta: {
         total,
-        skip,
-        take,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -47,24 +80,32 @@ export class LeadsService {
     });
 
     if (!lead) {
-      throw new NotFoundException(`Lead with id ${id} not found`);
+      throw new NotFoundException(`Lead con ID ${id} no encontrado`);
     }
 
     return lead;
   }
 
   async update(id: string, updateLeadDto: UpdateLeadDto) {
-    // Ensure it exists and is not soft deleted
     await this.findOne(id);
-    return this.prisma.lead.update({
-      where: { id },
-      data: updateLeadDto,
-    });
+    
+    try {
+      return await this.prisma.lead.update({
+        where: { id },
+        data: updateLeadDto,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException('El correo electrónico ya se encuentra registrado en otro lead');
+        }
+      }
+      throw new InternalServerErrorException('Error inesperado al actualizar el lead');
+    }
   }
 
   async remove(id: string) {
     await this.findOne(id);
-    // Soft delete by setting deletedAt to current timestamp
     return this.prisma.lead.update({
       where: { id },
       data: {
@@ -73,29 +114,45 @@ export class LeadsService {
     });
   }
 
-  async handleTypeformWebhook(payload: any) {
-    // Dummy transformation from Typeform raw payload to Lead system format.
-    // In a real scenario, we extract fields from payload.form_response.answers
-    try {
-      const answers = payload.form_response?.answers || [];
-      
-      // We simulate extraction assuming answers are mapped correctly. 
-      // This is just a conceptual mapping as requested "simular la entrada de datos de Typeform y transformar"
-      const nombre = answers.find((a: any) => a.type === 'text')?.text || 'Lead Webhook';
-      const email = answers.find((a: any) => a.type === 'email')?.email || `webhook-${Date.now()}@example.com`;
-      const telefono = answers.find((a: any) => a.type === 'phone_number')?.phone_number;
+  async getStats() {
+    const last7DaysDate = new Date();
+    last7DaysDate.setDate(last7DaysDate.getDate() - 7);
 
-      return this.prisma.lead.create({
-        data: {
-          nombre,
-          email,
-          telefono,
-          fuente: 'landing_page', // Defaulting to landing_page for Typeform submissions
+    const [total, leadsPorFuente, promedioPresupuesto, leadsRecientes] = await Promise.all([
+      this.prisma.lead.count({
+        where: { deletedAt: null },
+      }),
+      this.prisma.lead.groupBy({
+        by: ['fuente'],
+        _count: {
+          _all: true,
         },
-      });
-    } catch (error) {
-       console.error('Error parsing Typeform webhook', error);
-       throw error;
-    }
+        where: { deletedAt: null },
+      }),
+      this.prisma.lead.aggregate({
+        where: { deletedAt: null },
+        _avg: {
+          presupuesto: true,
+        },
+      }),
+      this.prisma.lead.count({
+        where: {
+          deletedAt: null,
+          createdAt: {
+            gte: last7DaysDate,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      totalLeads: total,
+      leadsPorFuente: leadsPorFuente.map((item) => ({
+        fuente: item.fuente,
+        cantidad: item._count._all,
+      })),
+      promedioPresupuesto: promedioPresupuesto._avg?.presupuesto || 0,
+      leadsUltimos7Dias: leadsRecientes,
+    };
   }
 }
