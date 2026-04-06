@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourceType {
+  instagram
+  facebook
+  landing_page
+  referido
+  otro
+}
+
+model Lead {
+  id               String    @id @default(uuid())
+  nombre           String
+  email            String    @unique
+  telefono         String?
+  fuente           SourceType
+  producto_interes String?
+  presupuesto      Float?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
