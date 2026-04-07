@@ -1,0 +1,6 @@
+# Asegurar que los scripts de shell siempre usen LF
+*.sh text eol=lf
+
+# Asegurar que otros archivos de configuración mantengan LF
+Dockerfile text eol=lf
+.env.example text eol=lf

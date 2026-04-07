@@ -21,8 +21,8 @@ RUN npm prune --production
 FROM node:20-alpine AS production
 WORKDIR /usr/src/app
 
-# INSTALAMOS OPENSSL AQUÍ TAMBIÉN (requerido por Prisma)
-RUN apk add --no-cache openssl
+# Instalamos openssl para Prisma y dos2unix para corregir formatos de línea
+RUN apk add --no-cache openssl dos2unix
 
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/dist ./dist
@@ -30,7 +30,9 @@ COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/prisma ./prisma
 COPY --from=builder /usr/src/app/entrypoint.sh ./entrypoint.sh
 
-RUN chmod +x ./entrypoint.sh
+# Corregimos formato de línea (CRLF -> LF) y damos permisos
+RUN dos2unix ./entrypoint.sh && chmod +x ./entrypoint.sh
+
 RUN chown -R node:node /usr/src/app
 USER node
 
