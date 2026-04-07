@@ -38,11 +38,11 @@ docker-compose up --build -d
 
 ### 2. Acceso a servicios:
 - **Base URL:** `http://localhost:3000/api`
-- **Swagger Documentation:** `http://localhost:3000/api/docs`
+- **Swagger Documentation:** `http://localhost:3000/docs`
 
 ### 3. Credenciales de Prueba (Admin):
 - **Email:** `admin@one-million.com`
-- **Password:** `admin123`
+- **Password:** `hashed_password_placeholder`
 
 > Usa estas credenciales en el endpoint `POST /auth/login` para obtener tu Token JWT.
 
@@ -128,10 +128,13 @@ curl -X POST http://localhost:3000/api/leads/webhook -H "Content-Type: applicati
 
 El análisis sobre la transformación de la creación de contenido mediante IA y su impacto en la viralidad se encuentra documentado en el siguiente archivo:
 
-👉 [Consultar ENSAYO.md](./ENSAYO.md)
+👉 [Consultar Respuesta-Teorica.md](./Respuesta-Teorica.md)
 
 ---
 
 > 💡 **Nota del Desarrollador**
 >
 > Este proyecto demuestra habilidades en arquitectura de microservicios, integración de servicios de terceros (LLMs) y despliegue automatizado. La lógica está desacoplada para permitir el cambio de modelos de IA sin afectar el core del negocio.
+
+> **Desarrollado por:** > **Julio Cesar Jimenez Garcia** > *Senior Systems Engineer* > *Especialista en Backend Architecture & B2B SaaS*
+
