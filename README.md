@@ -24,7 +24,14 @@ API robusta para la gestión inteligente de leads con integración de IA, diseñ
 
 El ecosistema está totalmente automatizado. Al levantar los contenedores, se ejecuta automáticamente el aprovisionamiento de la base de datos, migraciones de Prisma y el **Seeding** de datos iniciales.
 
-### 1. Levantar el proyecto:
+### 1. Configurar variables de entorno:
+Crea una copia del archivo de ejemplo:
+```bash
+cp .env.example .env
+```
+
+### 2. Levantar el proyecto:
+El ecosistema está automatizado. Al levantar, se ejecutan las migraciones y el Seeding:
 ```bash
 docker-compose up --build -d
 ```
@@ -80,6 +87,40 @@ Se implementó un servicio de IA resiliente que procesa datos de leads en tiempo
 | Auth | `POST /auth/login` | Público | Generación de Bearer Token. |
 | Leads | `GET /leads` | Protegido | Listado con filtros y paginación. |
 | IA | `POST /leads/ai/summary` | Protegido | Generación de resumen ejecutivo grupal. |
+| Webhook | `POST /leads/webhook` | Público | Recepción de leads desde Typeform. |
+
+### 🔗 Webhook (Integración Externa)
+
+Se implementó un endpoint para recibir leads automáticamente desde **Typeform**.
+
+- **Endpoint:** `POST /api/leads/webhook`
+- **Seguridad:** Acceso público (sin JWT) para permitir integraciones de terceros.
+- **Lógica:** Los datos se mapean automáticamente a la estructura interna, asignando `landing_page` como fuente predeterminada.
+
+#### 🛠️ Cómo probarlo (Payload Typeform)
+
+Envía este JSON al endpoint `POST /api/leads/webhook`:
+
+```json
+{
+  "event_id": "01EYW...",
+  "event_type": "form_response",
+  "form_response": {
+    "form_id": "LsnS71",
+    "token": "ad732f743df07e2c047192ea60d5b597",
+    "submitted_at": "2026-04-06T22:25:00Z",
+    "answers": [
+      { "type": "email", "email": "lead.typeform@test.com", "field": { "id": "1", "type": "email" } },
+      { "type": "text", "text": "Evaluador One Million", "field": { "id": "2", "type": "short_text", "ref": "name" } }
+    ]
+  }
+}
+```
+
+**Comando rápido via Terminal:**
+```bash
+curl -X POST http://localhost:3000/api/leads/webhook -H "Content-Type: application/json" -d '{"event_id":"01","event_type":"form_response","form_response":{"form_id":"1","token":"tk","submitted_at":"now","answers":[{"type":"email","email":"test@webhook.com","field":{"id":"1","type":"email"}},{"type":"text","text":"Lead Webhook","field":{"id":"2","type":"short_text","ref":"name"}}]}}'
+```
 
 ---
 

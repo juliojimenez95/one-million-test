@@ -4,8 +4,10 @@ import { AiService } from './ai.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { GetLeadsFilterDto } from './dto/get-leads-filter.dto';
-import { GroupSummaryFilterDto } from './dto/group-summary-filter.dto'; // Added
+import { GroupSummaryFilterDto } from './dto/group-summary-filter.dto'; 
+import { WebhookPayloadDto } from './dto/webhook-payload.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/public.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('Leads')
@@ -17,6 +19,16 @@ export class LeadsController {
     private readonly leadsService: LeadsService,
     private readonly aiService: AiService,
   ) {}
+
+  @Public()
+  @Post('webhook')
+  @ApiOperation({ summary: 'Recibir nuevos leads vía Webhook (Typeform)' })
+  @ApiResponse({ status: 201, description: 'Webhook procesado y lead creado.' })
+  @ApiResponse({ status: 400, description: 'Estructura de webhook inválida.' })
+  @ApiResponse({ status: 409, description: 'El lead ya existe en el sistema.' })
+  async handleWebhook(@Body() payload: WebhookPayloadDto) {
+    return this.leadsService.createFromWebhook(payload);
+  }
 
   @Get('stats')
   @ApiOperation({ summary: 'Obtener estadísticas de leads' })

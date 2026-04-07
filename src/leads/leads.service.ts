@@ -3,11 +3,59 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { GetLeadsFilterDto } from './dto/get-leads-filter.dto';
-import { Prisma } from '@prisma/client';
+import { WebhookPayloadDto } from './dto/webhook-payload.dto';
+import { Prisma, SourceType } from '@prisma/client';
 
 @Injectable()
 export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async createFromWebhook(payload: WebhookPayloadDto) {
+    const createLeadDto = this.mapTypeformToCreateDto(payload);
+    return this.create(createLeadDto);
+  }
+
+  private mapTypeformToCreateDto(payload: WebhookPayloadDto): CreateLeadDto {
+    const answers = payload.form_response.answers;
+    
+    // Mapeo inicial con valores por defecto
+    const leadData: Partial<CreateLeadDto> = {
+      fuente: SourceType.landing_page, // Según requerimiento del usuario
+    };
+
+    // Iteramos por las respuestas para encontrar email y nombre
+    for (const answer of answers) {
+      // Prioridad: Email
+      if (answer.type === 'email' && answer.email) {
+        leadData.email = answer.email;
+      }
+      
+      // Nombre: Buscamos campos de texto corto
+      if (answer.field.type === 'short_text' || answer.field.ref?.includes('name')) {
+        if (answer.text && !leadData.nombre) {
+          leadData.nombre = answer.text;
+        }
+      }
+
+      // Teléfono (opcional)
+      if (answer.type === 'phone_number' || answer.field.ref?.includes('phone')) {
+        leadData.telefono = answer.text || String(answer.number || '');
+      }
+
+      // Producto de interés (opcional)
+      if (answer.field.ref?.includes('product') || answer.field.ref?.includes('interes')) {
+        leadData.producto_interes = answer.text;
+      }
+    }
+
+    // Validaciones mínimas antes de pasar al DTO real
+    if (!leadData.nombre) leadData.nombre = 'Lead desde Typeform';
+    if (!leadData.email) {
+      throw new BadRequestException('El webhook de Typeform no contiene un email válido.');
+    }
+
+    return leadData as CreateLeadDto;
+  }
 
   async create(createLeadDto: CreateLeadDto) {
     try {
